@@ -16,7 +16,7 @@ MyToolName = "HttpProbe"
 class HttpProbeParams:
     url: str
     method: str = "GET"
-    timeout: float = 5.0
+    timeout: float = 10.0  # increased from 5.0 - 5s was too aggressive for slow endpoints
     expected_status: int = 200
     headers: dict[str, str] = field(default_factory=dict)
 
@@ -46,7 +46,7 @@ def extract_params(raw: dict[str, Any]) -> HttpProbeParams:
     return HttpProbeParams(
         url=raw["url"],
         method=raw.get("method", "GET").upper(),
-        timeout=float(raw.get("timeout", 5.0)),
+        timeout=float(raw.get("timeout", 10.0)),
         expected_status=int(raw.get("expected_status", 200)),
         headers=raw.get("headers", {}),
     )
