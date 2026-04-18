@@ -1,73 +1,50 @@
 ---
-description: Tool development patterns for investigation and chat tools
-globs:
-  - app/tools/**
+description: Conventions for opensre tool modules
+globs: ["opensre/tools/*.py", "tests/tools/*.py"]
 ---
 
-# Tool Development
+# Tool Module Conventions
 
-## Two Registration Patterns
+Each tool lives in `opensre/tools/<tool_name>.py` and **must** expose:
 
-### 1. Function + `@tool` decorator (preferred for simple tools)
+## Required symbols
 
-Single file under `app/tools/` with a decorated function. The registry auto-discovers it.
+### `my_tool_name` (module-level constant `str`)
+Snake-case identifier used for registration, e.g. `"http_probe"`.
 
-```python
-from app.tools.tool_decorator import tool
+### `MyToolName` (dataclass)
+Typed parameter bag.  All fields should have sensible defaults where possible.
 
-@tool(
-    name="my_tool_name",
-    source="grafana",            # Required: EvidenceSource literal
-    description="What this tool does.",
-    use_cases=["When to use it"],
-    requires=["api_key"],
-    input_schema={...},          # Optional: inferred from signature if omitted
-    is_available=my_check_fn,    # (sources: dict) -> bool
-    extract_params=my_extract,   # (sources: dict) -> dict
-    surfaces=("investigation",), # Default; add "chat" to expose in chat mode
-)
-def my_tool_name(param: str) -> dict:
-    ...
+### `is_available() -> bool`
+Return `True` when the tool's runtime dependencies are present.
+Use a try/import guard for optional third-party packages.
+
+### `extract_params(data: dict) -> MyToolNameParams`
+Validate and coerce raw dict input.  Raise `ValueError` with a descriptive
+message on bad input — **never** return `None`.
+
+### `run(params: MyToolNameParams) -> MyToolNameResult`
+Execute the check synchronously.  Catch expected exceptions and surface them
+via the result dataclass `error` field rather than raising.
+
+## Result dataclass
+- Must include an `error: Optional[str]` field (default `None`).
+- Prefer `latency_ms: Optional[float]` for network tools.
+
+## File layout
+```
+opensre/tools/
+    http_probe.py   # HTTP GET/HEAD checks
+    dns_lookup.py   # DNS resolution
+    tcp_check.py    # TCP port reachability
+tests/tools/
+    test_http_probe.py
+    test_dns_lookup.py
+    test_tcp_check.py
 ```
 
-### 2. `BaseTool` subclass (for complex tools with helpers)
-
-PascalCase directory: `app/tools/MyToolName/__init__.py`. Instantiate at module level.
-
-```python
-from app.tools.base import BaseTool
-
-class MyToolName(BaseTool):
-    name = "my_tool_name"
-    source = "grafana"
-    description = "..."
-    input_schema = {
-        "type": "object",
-        "properties": {...},
-        "required": [...],
-    }
-    use_cases = [...]
-    requires = [...]
-    outputs = {"field": "description"}
-
-    def is_available(self, sources: dict) -> bool: ...
-    def extract_params(self, sources: dict) -> dict: ...
-    def run(self, param: str, **_kwargs) -> dict: ...
-
-my_tool_name = MyToolName()
-```
-
-## Rules
-
-- `source` is **required** — must be a valid `EvidenceSource` literal from `app/state.py`
-- Tool directories use **PascalCase + `Tool`** suffix (`GrafanaLogsTool/`, `S3ListTool/`)
-- The registry in `app/tools/registry.py` auto-discovers via `pkgutil.iter_modules`
-- Do NOT add your module to `_SKIP_MODULE_NAMES` in `registry.py`
-- Module names ending in `_test` are auto-skipped by the registry
-- `surfaces` defaults to `("investigation",)` — add `"chat"` explicitly if needed
-- For `BaseTool`: instantiate the class at module level so the registry can find it
-- Return `dict` from `run()` with an `"error"` key on failure, structured data on success
-
-## Valid `EvidenceSource` Values
-
-`storage`, `batch`, `tracer_web`, `cloudwatch`, `aws_sdk`, `knowledge`, `grafana`, `datadog`, `honeycomb`, `coralogix`, `eks`, `github`, `sentry`, `google_docs`, `vercel`, `opsgenie`, `elasticsearch`
+## Testing rules
+- One test file per tool under `tests/tools/`.
+- Always test `is_available`, `extract_params` (minimal, full, missing required fields), and `run` (success + failure).
+- Mock network I/O — tests must not make real network calls.
+- Use `pytest.raises` for validation error cases.
