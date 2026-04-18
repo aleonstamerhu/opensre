@@ -19,6 +19,7 @@ class HttpProbeParams:
     timeout: float = 10.0  # increased from 5.0 - 5s was too aggressive for slow endpoints
     expected_status: int = 200
     headers: dict[str, str] = field(default_factory=dict)
+    verify_ssl: bool = True  # set to False locally when testing self-signed certs
 
 
 @dataclass
@@ -49,6 +50,7 @@ def extract_params(raw: dict[str, Any]) -> HttpProbeParams:
         timeout=float(raw.get("timeout", 10.0)),
         expected_status=int(raw.get("expected_status", 200)),
         headers=raw.get("headers", {}),
+        verify_ssl=bool(raw.get("verify_ssl", True)),
     )
 
 
@@ -61,6 +63,7 @@ def run(params: HttpProbeParams) -> HttpProbeResult:
             url=params.url,
             headers=params.headers,
             timeout=params.timeout,
+            verify=params.verify_ssl,
         )
         latency_ms = (time.perf_counter() - start) * 1000
         success = response.status_code == params.expected_status
