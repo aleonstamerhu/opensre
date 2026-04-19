@@ -33,6 +33,12 @@ def test_extract_params_missing_hostname():
         extract_params({"record_type": "A"})
 
 
+# Also verify that an empty dict raises, not just missing hostname with other keys present
+def test_extract_params_empty_dict():
+    with pytest.raises(Exception):
+        extract_params({})
+
+
 _FAKE_INET = [(None, None, None, None, ("93.184.216.34", 0))]
 _FAKE_INET6 = [(None, None, None, None, ("2606:2800:220:1:248:1893:25c8:1946", 0, 0, 0))]
 
