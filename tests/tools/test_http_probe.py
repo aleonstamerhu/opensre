@@ -94,3 +94,17 @@ def test_run_latency_is_positive(mock_request):
 
     assert isinstance(result.latency_ms, float)
     assert result.latency_ms >= 0.0
+
+
+@patch("opensre.tools.http_probe.requests.request")
+def test_run_404_is_failure(mock_request):
+    # 404 should be treated as a failure when expected_status is 200 (the default)
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+    mock_request.return_value = mock_response
+
+    params = HttpProbeParams(url="https://example.com/missing")
+    result = run(params)
+
+    assert result.success is False
+    assert result.status_code == 404
