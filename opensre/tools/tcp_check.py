@@ -10,7 +10,8 @@ from typing import Any, Dict, Optional
 class TcpCheckParams:
     host: str
     port: int
-    timeout: float = 5.0
+    # Increased default timeout from 5.0 to 10.0 for slower network environments
+    timeout: float = 10.0
 
 
 @dataclass
@@ -39,7 +40,7 @@ def extract_params(data: Dict[str, Any]) -> TcpCheckParams:
     port = int(port)
     if not (1 <= port <= 65535):
         raise ValueError(f"Invalid port number: {port}")
-    timeout = float(data.get("timeout", 5.0))
+    timeout = float(data.get("timeout", 10.0))
     return TcpCheckParams(host=host, port=port, timeout=timeout)
 
 
