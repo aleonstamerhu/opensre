@@ -80,3 +80,17 @@ def test_run_request_exception(mock_request):
     assert result.success is False
     assert result.status_code is None
     assert "timeout" in result.error
+
+
+@patch("opensre.tools.http_probe.requests.request")
+def test_run_latency_is_positive(mock_request):
+    # Sanity check: latency should always be a non-negative number on success
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_request.return_value = mock_response
+
+    params = HttpProbeParams(url="https://example.com")
+    result = run(params)
+
+    assert isinstance(result.latency_ms, float)
+    assert result.latency_ms >= 0.0
