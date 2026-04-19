@@ -46,6 +46,12 @@ def test_extract_params_invalid_port():
         extract_params({"host": "example.com", "port": 99999})
 
 
+# Also verify port 0 is rejected as invalid
+def test_extract_params_invalid_port_zero():
+    with pytest.raises(ValueError, match="Invalid port"):
+        extract_params({"host": "example.com", "port": 0})
+
+
 def test_run_success():
     params = TcpCheckParams(host="example.com", port=80)
     mock_cm = MagicMock()
