@@ -12,7 +12,7 @@ my_tool_name = "dns_lookup"
 class DnsLookupParams(BaseModel):
     hostname: str = Field(..., description="Hostname to resolve")
     record_type: str = Field(default="A", description="DNS record type (A, AAAA, etc.)")
-    timeout: float = Field(default=10.0, description="Lookup timeout in seconds")
+    timeout: float = Field(default=5.0, description="Lookup timeout in seconds")
 
 
 class DnsLookupResult(BaseModel):
@@ -33,7 +33,7 @@ def extract_params(data: dict[str, Any]) -> DnsLookupParams:
     return DnsLookupParams(
         hostname=data["hostname"],
         record_type=data.get("record_type", "A"),
-        timeout=data.get("timeout", 10.0),
+        timeout=data.get("timeout", 5.0),
     )
 
 
