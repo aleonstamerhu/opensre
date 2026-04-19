@@ -20,6 +20,7 @@ class HttpProbeParams:
     expected_status: int = 200
     headers: dict[str, str] = field(default_factory=dict)
     verify_ssl: bool = True  # set to False locally when testing self-signed certs
+    follow_redirects: bool = True  # added: most endpoints I test use redirects
 
 
 @dataclass
@@ -51,6 +52,7 @@ def extract_params(raw: dict[str, Any]) -> HttpProbeParams:
         expected_status=int(raw.get("expected_status", 200)),
         headers=raw.get("headers", {}),
         verify_ssl=bool(raw.get("verify_ssl", True)),
+        follow_redirects=bool(raw.get("follow_redirects", True)),
     )
 
 
@@ -64,6 +66,7 @@ def run(params: HttpProbeParams) -> HttpProbeResult:
             headers=params.headers,
             timeout=params.timeout,
             verify=params.verify_ssl,
+            allow_redirects=params.follow_redirects,
         )
         latency_ms = (time.perf_counter() - start) * 1000
         success = response.status_code == params.expected_status
