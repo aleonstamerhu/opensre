@@ -21,6 +21,7 @@ class HttpProbeParams:
     headers: dict[str, str] = field(default_factory=dict)
     verify_ssl: bool = True  # set to False locally when testing self-signed certs
     follow_redirects: bool = True  # added: most endpoints I test use redirects
+    max_retries: int = 0  # number of times to retry on RequestException before giving up
 
 
 @dataclass
@@ -53,35 +54,41 @@ def extract_params(raw: dict[str, Any]) -> HttpProbeParams:
         headers=raw.get("headers", {}),
         verify_ssl=bool(raw.get("verify_ssl", True)),
         follow_redirects=bool(raw.get("follow_redirects", True)),
+        max_retries=int(raw.get("max_retries", 0)),
     )
 
 
 def run(params: HttpProbeParams) -> HttpProbeResult:
     """Execute the HTTP probe and return a result."""
+    attempts = 0
+    last_exc: requests.RequestException | None = None
     start = time.perf_counter()
-    try:
-        response = requests.request(
-            method=params.method,
-            url=params.url,
-            headers=params.headers,
-            timeout=params.timeout,
-            verify=params.verify_ssl,
-            allow_redirects=params.follow_redirects,
-        )
-        latency_ms = (time.perf_counter() - start) * 1000
-        success = response.status_code == params.expected_status
-        return HttpProbeResult(
-            url=params.url,
-            status_code=response.status_code,
-            latency_ms=round(latency_ms, 2),
-            success=success,
-        )
-    except requests.RequestException as exc:
-        latency_ms = (time.perf_counter() - start) * 1000
-        return HttpProbeResult(
-            url=params.url,
-            status_code=None,
-            latency_ms=round(latency_ms, 2),
-            success=False,
-            error=str(exc),
-        )
+    while attempts <= params.max_retries:
+        try:
+            response = requests.request(
+                method=params.method,
+                url=params.url,
+                headers=params.headers,
+                timeout=params.timeout,
+                verify=params.verify_ssl,
+                allow_redirects=params.follow_redirects,
+            )
+            latency_ms = (time.perf_counter() - start) * 1000
+            success = response.status_code == params.expected_status
+            return HttpProbeResult(
+                url=params.url,
+                status_code=response.status_code,
+                latency_ms=round(latency_ms, 2),
+                success=success,
+            )
+        except requests.RequestException as exc:
+            last_exc = exc
+            attempts += 1
+    latency_ms = (time.perf_counter() - start) * 1000
+    return HttpProbeResult(
+        url=params.url,
+        status_code=None,
+        latency_ms=round(latency_ms, 2),
+        success=False,
+        error=str(last_exc),
+    )
